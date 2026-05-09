@@ -1,0 +1,1 @@
+一款使用pytest+allure+requests编写的自动化测试框架
