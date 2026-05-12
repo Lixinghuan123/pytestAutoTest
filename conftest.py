@@ -7,13 +7,7 @@ from utils.context import GlobalContext
 def global_ctx():
     """全局变量上下文，整个测试会话共享。在此配置初始变量。"""
     ctx = GlobalContext()
-    # ---------- 按需配置 ----------
-    # ctx.set("base_url", "https://m-passport.shop-sandbox.com")   # 基础URL，相对路径会自动拼接
-    # ctx.set("loginName", "limiaomiao")
     ctx.set("base_url", "https://www.info-sandbox.top")  # 基础URL，相对路径会自动拼接
-    # ctx.set("accountNumber", "13122761139")
-    # ctx.set("password", "81cc14daccf9488de432d62fe239b925908154856b57d37aa5cba31f06643799")          # 登录密码等初始变量
-    # -----------------------------
     return ctx
 
 
