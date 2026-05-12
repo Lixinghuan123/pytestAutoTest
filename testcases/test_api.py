@@ -44,7 +44,6 @@ def get_case_id(case):
     return f"case_{case.get('ID', 'unknown')}_{case.get('module', 'unknown')}"
 
 
-@allure.feature("接口自动化测试")
 @pytest.mark.parametrize("case", load_cases(), ids=get_case_id)
 def test_api(case: dict, http_client, global_ctx):
     """单个接口测试用例的执行入口"""
