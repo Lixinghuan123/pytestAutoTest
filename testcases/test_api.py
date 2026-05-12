@@ -3,6 +3,7 @@ import allure
 import pytest
 from utils.excel_reader import read_excel
 from utils.assertion import assert_response
+from utils.extractor import ResponseExtractor
 
 
 EXCEL_PATH = "test_cases.xlsx"
@@ -37,7 +38,9 @@ def test_api(case: dict, http_client, global_ctx):
     # 2. 提取变量（如 token）写入全局上下文
     if extracted:
         with allure.step(f"提取变量: {extracted}"):
-            _extract_and_store(resp, extracted, global_ctx)
+            extracted_vars = ResponseExtractor.extract_and_store(resp, extracted, global_ctx)
+            for var_name, value in extracted_vars.items():
+                allure.attach(str(value), name=f"提取: {var_name}", attachment_type=allure.attachment_type.TEXT)
 
     # 3. 断言
     if expected_field and expected is not None:
@@ -89,40 +92,3 @@ def _attach_response(resp):
         name="响应详情",
         attachment_type=allure.attachment_type.JSON,
     )
-
-
-def _extract_and_store(resp, extract_expr: str, ctx):
-    """解析 extracted 列表达式并从响应 JSON 中提取值存入全局上下文。
-
-    支持格式：
-      - data.token        → 提取 resp["data"]["token"]，存入 ctx["token"]
-      - data.token:alias  → 提取 resp["data"]["token"]，存入 ctx["alias"]
-      - token             → 提取 resp["token"]，存入 ctx["token"]
-    """
-    try:
-        resp_json = resp.json()
-    except Exception:
-        return
-
-    if ":" in extract_expr:
-        field_path, alias = extract_expr.split(":", 1)
-    else:
-        field_path = extract_expr
-        alias = field_path.split(".")[-1]
-
-    value = _extract_nested(resp_json, field_path)
-    if value is not None:
-        ctx.set(alias.strip(), value)
-        allure.attach(str(value), name=f"提取: {alias.strip()}", attachment_type=allure.attachment_type.TEXT)
-
-
-def _extract_nested(data: dict, field_path: str):
-    """按点号路径从嵌套字典取值"""
-    current = data
-    for part in field_path.split("."):
-        part = part.strip()
-        if isinstance(current, dict):
-            current = current.get(part)
-        else:
-            return None
-    return current

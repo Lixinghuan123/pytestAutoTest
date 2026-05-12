@@ -5,8 +5,10 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "allure-cli>=0.2.4",
     "allure-pytest>=2.16.0",
     "jinja2>=3.1.0",
+    "jsonpath-ng>=1.6.0",
     "numpy>=2.4.4",
     "openpyxl>=3.1.5",
     "pandas>=3.0.2",

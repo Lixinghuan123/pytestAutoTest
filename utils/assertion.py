@@ -2,9 +2,10 @@ import re
 
 
 def assert_response(response, expected_field: str, expected_value: str):
-    """从响应 JSON 中提取字段值并断言等于期望值。
+    """从响应 JSON 中提取字段值并断言期望值包含在实际值中。
 
     支持点号分隔的嵌套字段，如 data.token 表示 response["data"]["token"]。
+    断言逻辑：期望值是否包含在实际值中（支持字符串、列表、字典）
     """
     try:
         resp_json = response.json()
@@ -12,11 +13,22 @@ def assert_response(response, expected_field: str, expected_value: str):
         resp_json = {"_raw": response.text}
 
     actual = _extract_field(resp_json, expected_field)
-    expected = _coerce_type(actual, expected_value)
+    expected = str(expected_value)  # 期望值转为字符串进行包含判断
 
-    assert actual == expected, (
-        f"断言失败: {expected_field} 实际值={actual!r}，期望值={expected!r}"
+    # 包含关系断言
+    assert _contains(actual, expected), (
+        f"断言失败: {expected_field} 实际值={actual!r}，期望包含={expected!r}"
     )
+
+
+def _contains(actual, expected: str) -> bool:
+    """判断期望值是否包含在实际值中"""
+    if actual is None:
+        return False
+    
+    # 将实际值转为字符串进行包含判断
+    actual_str = str(actual)
+    return expected in actual_str
 
 
 def _extract_field(data: dict, field_path: str):

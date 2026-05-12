@@ -18,10 +18,11 @@ class GlobalContext:
         self._vars.update(mapping)
 
     def render(self, text):
-        """渲染文本中的模板变量，兼容 ${var} 和 {{ var }} 两种写法"""
+        """渲染文本中的模板变量，兼容 ${var} 和 {{ var }} 两种写法，支持数组索引"""
         if text is None or not isinstance(text, str):
             return text
-        text = re.sub(r'\$\{(\w+)\}', r'{{ \1 }}', text)
+        # 支持 ${var} 和 ${var[index]} 格式
+        text = re.sub(r'\$\{(\w+(?:\[\d+\])*)\}', r'{{ \1 }}', text)
         env = Environment(loader=BaseLoader())
         template = env.from_string(text)
         return template.render(**self._vars)
