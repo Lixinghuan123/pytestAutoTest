@@ -1,23 +1,42 @@
 dev:
-  type: mysql
-  host: localhost
-  port: 3306
-  user: root
-  password: "xxx"
-  database: my_app
+  default:
+    type: mysql
+    host: localhost
+    port: 3306
+    user: root
+    password: "xxx"
+    database: my_app
+  # 可以添加更多数据库
+  # other_db:
+  #   type: mysql
+  #   host: localhost
+  #   port: 3306
+  #   user: root
+  #   password: "xxx"
+  #   database: my_app_other
 
 test:
-  type: mysql
-  host: 192.168.0.110
-  port: 3310
-  user: limiaomiao
-  password: "S143NrY5HqkhY5KJ9R"
-  database: lovead_dashu_core
+  default:
+    type: mysql
+    host: 192.168.0.110
+    port: 3310
+    user: limiaomiao
+    password: "S143NrY5HqkhY5KJ9R"
+    database: lovead_dashu_core
+  # 可以添加更多数据库
+  content:
+    type: mysql
+    host: 192.168.0.110
+    port: 3310
+    user: limiaomiao
+    password: "S143NrY5HqkhY5KJ9R"
+    database: lovead_dashu_content
 
 prod:
-  type: mysql
-  host: prod.example.com
-  port: 3306
-  user: prod_user
-  password: "prod_password"
-  database: my_app_prod
+  default:
+    type: mysql
+    host: prod.example.com
+    port: 3306
+    user: prod_user
+    password: "prod_password"
+    database: my_app_prod

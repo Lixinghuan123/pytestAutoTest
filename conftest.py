@@ -36,11 +36,29 @@ def http_client(global_ctx):
 
 @pytest.fixture(scope="session")
 def db_client(global_ctx, db_env):
-    """数据库客户端，整个测试会话共享一个连接"""
+    """默认数据库客户端（default），整个测试会话共享一个连接"""
     from utils.db_client import DbClient
-    db = DbClient(global_ctx, env=db_env)
+    db = DbClient(global_ctx, env=db_env, db_name="default")
     yield db
-    db.close_all()
+    db.close()
+
+
+@pytest.fixture(scope="session")
+def db_client_factory(global_ctx, db_env):
+    """数据库客户端工厂，支持创建指定数据库的客户端"""
+    from utils.db_client import DbClient
+    clients = {}
+    
+    def get_db_client(db_name: str = "default") -> DbClient:
+        if db_name not in clients:
+            clients[db_name] = DbClient(global_ctx, env=db_env, db_name=db_name)
+        return clients[db_name]
+    
+    yield get_db_client
+    
+    # 清理所有客户端
+    for client in clients.values():
+        client.close()
 
 
 def pytest_collection_modifyitems(items):
