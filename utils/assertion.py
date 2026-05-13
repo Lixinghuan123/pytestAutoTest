@@ -60,3 +60,37 @@ def _coerce_type(actual, expected: str):
         except ValueError:
             return expected
     return expected
+
+
+def assert_sql(actual_rows: list[dict], expected_str: str):
+    """断言SQL查询结果是否符合期望。
+    
+    期望格式：key=value, key2=value2
+    用逗号分隔多个字段，等号左边是列名，右边是期望值。
+    断言逻辑：检查第一行数据是否匹配所有字段。
+    """
+    if not actual_rows:
+        assert False, "SQL查询结果为空"
+    
+    # 解析期望字符串
+    expected_dict = {}
+    for pair in expected_str.split(","):
+        pair = pair.strip()
+        if "=" in pair:
+            key, value = pair.split("=", 1)
+            expected_dict[key.strip()] = value.strip()
+    
+    # 获取第一行数据进行断言
+    actual = actual_rows[0]
+    
+    # 逐字段断言
+    for key, expected in expected_dict.items():
+        if key not in actual:
+            assert False, f"字段 {key} 不存在于查询结果中"
+        
+        actual_value = actual[key]
+        expected_value = _coerce_type(actual_value, expected)
+        
+        assert str(actual_value) == str(expected_value), (
+            f"SQL断言失败: {key} 实际值={actual_value!r}，期望值={expected_value!r}"
+        )

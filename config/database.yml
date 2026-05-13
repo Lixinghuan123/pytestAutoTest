@@ -1,0 +1,23 @@
+dev:
+  type: mysql
+  host: localhost
+  port: 3306
+  user: root
+  password: "xxx"
+  database: my_app
+
+test:
+  type: mysql
+  host: 192.168.0.110
+  port: 3310
+  user: limiaomiao
+  password: "S143NrY5HqkhY5KJ9R"
+  database: lovead_dashu_core
+
+prod:
+  type: mysql
+  host: prod.example.com
+  port: 3306
+  user: prod_user
+  password: "prod_password"
+  database: my_app_prod

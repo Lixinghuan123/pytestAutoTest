@@ -2,7 +2,7 @@ import json
 import allure
 import pytest
 from utils.excel_reader import read_excel
-from utils.assertion import assert_response
+from utils.assertion import assert_response, assert_sql
 from utils.extractor import ResponseExtractor
 
 
@@ -45,7 +45,7 @@ def get_case_id(case):
 
 
 @pytest.mark.parametrize("case", load_cases(), ids=get_case_id)
-def test_api(case: dict, http_client, global_ctx):
+def test_api(case: dict, http_client, global_ctx, db_client):
     """单个接口测试用例的执行入口"""
     _set_allure_labels(case)
 
@@ -74,6 +74,20 @@ def test_api(case: dict, http_client, global_ctx):
     if expected_field and expected is not None:
         with allure.step(f"断言: {expected_field} 包含 {expected}"):
             assert_response(resp, expected_field, str(expected))
+
+    # 4. 执行SQL并断言（复用会话级数据库连接）
+    sql = case.get("sql")
+    expected_sql = case.get("expected_sql")
+    if sql:
+        with allure.step(f"执行SQL: {sql}"):
+            rows = db_client.execute(sql)
+            allure.attach(sql, name="SQL语句", attachment_type=allure.attachment_type.TEXT)
+            allure.attach(json.dumps(rows, ensure_ascii=False, indent=2,default=str),
+                         name="SQL结果", attachment_type=allure.attachment_type.JSON)
+            
+            if expected_sql:
+                with allure.step(f"SQL断言: {expected_sql}"):
+                    assert_sql(rows, expected_sql)
 
 
 # ---------- helpers ----------
