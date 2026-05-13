@@ -32,8 +32,8 @@ def load_cases():
             other_cases.append(case)
     
     # 按 ID 排序
-    login_cases.sort(key=lambda c: c.get("ID", 9999) or 9999)
-    other_cases.sort(key=lambda c: c.get("ID", 9999) or 9999)
+    # login_cases.sort(key=lambda c: c.get("ID", 9999) or 9999)
+    # other_cases.sort(key=lambda c: c.get("ID", 9999) or 9999)
     
     # 登录用例优先
     return login_cases + other_cases
@@ -129,14 +129,13 @@ def _attach_response(resp):
     """附加响应信息到 Allure"""
     try:
         body = resp.json()
-        formatted = json.dumps(body, ensure_ascii=False, indent=2)
     except Exception:
-        formatted = resp.text
+        body = resp.text
     
     info = {
         "status_code": resp.status_code,
         "headers": dict(resp.headers),
-        "body": formatted,
+        "body": body ,
     }
     
     allure.attach(
