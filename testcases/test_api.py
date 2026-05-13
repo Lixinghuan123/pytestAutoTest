@@ -79,15 +79,23 @@ def test_api(case: dict, http_client, global_ctx, db_client):
     sql = case.get("sql")
     expected_sql = case.get("expected_sql")
     if sql:
-        with allure.step(f"执行SQL: {sql}"):
-            rows = db_client.execute(sql)
-            allure.attach(sql, name="SQL语句", attachment_type=allure.attachment_type.TEXT)
-            allure.attach(json.dumps(rows, ensure_ascii=False, indent=2,default=str),
-                         name="SQL结果", attachment_type=allure.attachment_type.JSON)
+        try:
+            with allure.step(f"执行SQL: {sql}"):
+                rows = db_client.execute(sql)
+                allure.attach(sql, name="SQL语句", attachment_type=allure.attachment_type.TEXT)
+                allure.attach(json.dumps(rows, ensure_ascii=False, indent=2, default=str),
+                             name="SQL结果", attachment_type=allure.attachment_type.JSON)
             
             if expected_sql:
                 with allure.step(f"SQL断言: {expected_sql}"):
                     assert_sql(rows, expected_sql)
+        except Exception as e:
+            # 确保即使失败也能记录SQL信息
+            allure.attach(sql, name="失败的SQL语句", attachment_type=allure.attachment_type.TEXT)
+            if 'rows' in locals():
+                allure.attach(json.dumps(rows, ensure_ascii=False, indent=2, default=str),
+                             name="失败时的SQL结果", attachment_type=allure.attachment_type.JSON)
+            raise
 
 
 # ---------- helpers ----------

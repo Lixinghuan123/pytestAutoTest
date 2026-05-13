@@ -173,46 +173,58 @@ def build_packages_from_cases(report_dir: str):
 
 
 def main():
-    try:
-        # 1. 运行 pytest
-        print("运行pytest测试...")
-        subprocess.run(["uv", "run", "pytest", "-v", "--clean-alluredir"], check=True)
+    test_failed = False
+    
+    # 0. 清空旧的测试结果（避免历史数据干扰）
+    print("清空历史测试结果...")
+    if os.path.exists("allure-results"):
+        import shutil
+        shutil.rmtree("allure-results")
+    os.makedirs("allure-results", exist_ok=True)
+    
+    # 1. 运行 pytest（即使失败也继续）
+    print("\n运行pytest测试...")
+    pytest_result = subprocess.run(["uv", "run", "pytest", "-v"])
+    if pytest_result.returncode != 0:
+        test_failed = True
+        print(f"\n⚠️ 测试执行完成，部分用例失败（退出码: {pytest_result.returncode}）")
 
-        # 2. 写入 categories 配置（--clean-alluredir 已清空目录，在此之后写入）
-        print("\n写入 categories 配置...")
-        with open("allure-results/categories.json", "w", encoding="utf-8") as f:
-            json.dump(CATEGORIES_CONFIG, f, ensure_ascii=False, indent=2)
+    # 2. 写入 categories 配置
+    print("\n写入 categories 配置...")
+    with open("allure-results/categories.json", "w", encoding="utf-8") as f:
+        json.dump(CATEGORIES_CONFIG, f, ensure_ascii=False, indent=2)
 
-        # 3. 生成 Allure 报告
-        print("\n生成Allure报告...")
-        subprocess.run([
-            ALLURE_BIN, "generate", "allure-results",
-            "-o", "allure-report", "--clean", "--lang", "zh"
-        ], check=True)
+    # 3. 生成 Allure 报告
+    print("\n生成Allure报告...")
+    subprocess.run([
+        ALLURE_BIN, "generate", "allure-results",
+        "-o", "allure-report", "--clean", "--lang", "zh"
+    ])
 
-        # 4. 修复：allure generate 可能未生成 behaviors.json / packages.json
-        print("\n修复缺失的行为/包数据文件...")
-        report_dir = os.path.abspath("allure-report")
-        build_behaviors_from_cases(report_dir)
-        build_packages_from_cases(report_dir)
+    # 4. 修复缺失的行为/包数据文件
+    print("\n修复缺失的行为/包数据文件...")
+    report_dir = os.path.abspath("allure-report")
+    build_behaviors_from_cases(report_dir)
+    build_packages_from_cases(report_dir)
 
-        # 5. 用 Python HTTP 服务器托管报告（避免 file:// 协议 404）
-        print("\n启动报告服务器...")
-        Handler = http.server.SimpleHTTPRequestHandler
+    # 5. 用 Python HTTP 服务器托管报告
+    print("\n启动报告服务器...")
+    Handler = http.server.SimpleHTTPRequestHandler
 
-        with socketserver.TCPServer(("", PORT), Handler) as httpd:
-            os.chdir(report_dir)
-            url = f"http://localhost:{PORT}"
-            print(f"报告地址: {url}")
-            webbrowser.open(url)
-            print("按 Ctrl+C 停止服务器...")
-            try:
-                httpd.serve_forever()
-            except KeyboardInterrupt:
-                print()
-
-    except subprocess.CalledProcessError as e:
-        print(f"执行失败: {e}")
+    with socketserver.TCPServer(("", PORT), Handler) as httpd:
+        os.chdir(report_dir)
+        url = f"http://localhost:{PORT}"
+        print(f"报告地址: {url}")
+        webbrowser.open(url)
+        print("按 Ctrl+C 停止服务器...")
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            print()
+    
+    # 返回测试结果状态
+    if test_failed:
+        exit(1)
 
 
 if __name__ == "__main__":
