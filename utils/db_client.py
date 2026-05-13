@@ -41,6 +41,10 @@ class DbClient:
             self._connections[self.env] = conn
         return self._connections[self.env]
     
+    def render_sql(self, sql: str) -> str:
+        """渲染SQL模板变量"""
+        return self.context.render(sql)
+    
     def execute(self, sql: str) -> list[dict]:
         """执行SQL查询，支持模板渲染"""
         # 1. 渲染模板变量
