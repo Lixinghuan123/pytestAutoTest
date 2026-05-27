@@ -59,11 +59,15 @@ class DbClient:
         # 1. 渲染模板变量
         rendered_sql = self.context.render(sql)
         
-        # 2. 执行SQL
+        # 2. 执行渲染后的SQL
+        return self.execute_raw(rendered_sql)
+    
+    def execute_raw(self, sql: str) -> list[dict]:
+        """执行已渲染的原始SQL，不进行模板渲染"""
         conn = self._get_connection()
         try:
             with conn.cursor() as cursor:
-                cursor.execute(rendered_sql)
+                cursor.execute(sql)
                 conn.commit()
                 return cursor.fetchall()
         except Exception as e:

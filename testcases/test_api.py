@@ -10,7 +10,7 @@ EXCEL_PATH = "test_cases.xlsx"
 
 
 def load_cases():
-    """加载 Excel 中的测试用例，确保登录用例优先执行"""
+    """加载 Excel 中的测试用例，确保登录用例优先执行+多行sql与对应expected_sql已经处理过；问题"""
     cases = read_excel(EXCEL_PATH)
     
     # 过滤有效用例
@@ -75,12 +75,16 @@ def test_api(case: dict, http_client, global_ctx, db_client, db_client_factory):
         with allure.step(f"断言: {expected_field} 包含 {expected}"):
             assert_response(resp, expected_field, str(expected))
 
-    # 4. 执行SQL并断言（支持多数据库）
-    sql = case.get("sql")
-    expected_sql = case.get("expected_sql")
+    # 4. 执行SQL并断言（支持多数据库、多SQL）
+    sql_list = case.get("sql", [])
+    expected_sql_list = case.get("expected_sql", [])
     db_name = case.get("db_name", "default")  # 从Excel获取数据库名称
     
-    if sql:
+    # 确保 sql_list 是列表格式
+    if isinstance(sql_list, str):
+        sql_list = [sql_list]
+    
+    if sql_list:
         try:
             # 根据 db_name 获取对应的数据库客户端
             if db_name == "default":
@@ -88,27 +92,55 @@ def test_api(case: dict, http_client, global_ctx, db_client, db_client_factory):
             else:
                 current_db = db_client_factory(db_name)
             
-            # 先渲染SQL模板变量
-            rendered_sql = current_db.render_sql(sql)
+            # 存储所有SQL执行结果
+            all_results = []
             
-            with allure.step(f"执行SQL [{db_name}]: {sql}"):
-                rows = current_db.execute(sql)
-                allure.attach(sql, name="原始SQL（含模板变量）", attachment_type=allure.attachment_type.TEXT)
-                allure.attach(rendered_sql, name="渲染后SQL（实际执行）", attachment_type=allure.attachment_type.TEXT)
-                allure.attach(json.dumps(rows, ensure_ascii=False, indent=2, default=str),
-                             name="SQL结果", attachment_type=allure.attachment_type.JSON)
+            # 执行每条SQL
+            for idx, sql in enumerate(sql_list):
+                if not sql.strip():
+                    continue
+                
+                # 先渲染SQL模板变量，这里的渲染1、allure中查看 2、传递给数据库执行
+                rendered_sql = current_db.render_sql(sql)
+                
+                with allure.step(f"执行SQL[{idx+1}] [{db_name}]: {sql[:100]}..."):
+                    # 传递渲染后的SQL，避免重复渲染
+                    rows = current_db.execute_raw(rendered_sql)
+                    all_results.append(rows)
+                    
+                    allure.attach(sql, name=f"SQL[{idx+1}] 原始SQL（含模板变量）", 
+                                  attachment_type=allure.attachment_type.TEXT)
+                    allure.attach(rendered_sql, name=f"SQL[{idx+1}] 渲染后SQL（实际执行）", 
+                                  attachment_type=allure.attachment_type.TEXT)
+                    allure.attach(json.dumps(rows, ensure_ascii=False, indent=2, default=str),
+                                 name=f"SQL[{idx+1}] 执行结果", 
+                                 attachment_type=allure.attachment_type.JSON)
             
-            if expected_sql:
-                with allure.step(f"SQL断言: {expected_sql}"):
-                    assert_sql(rows, expected_sql)
+            # 执行断言
+            if expected_sql_list:
+                # 确保 expected_sql_list 是列表格式
+                if isinstance(expected_sql_list, str):
+                    expected_sql_list = [expected_sql_list]
+                
+                with allure.step(f"SQL断言: {expected_sql_list}"):
+                    assert_sql(all_results, expected_sql_list)
         except Exception as e:
             # 确保即使失败也能记录SQL信息
-            allure.attach(sql, name="失败的原始SQL", attachment_type=allure.attachment_type.TEXT)
-            if 'rendered_sql' in locals():
-                allure.attach(rendered_sql, name="失败的渲染后SQL", attachment_type=allure.attachment_type.TEXT)
-            if 'rows' in locals():
-                allure.attach(json.dumps(rows, ensure_ascii=False, indent=2, default=str),
-                             name="失败时的SQL结果", attachment_type=allure.attachment_type.JSON)
+            for idx, sql in enumerate(sql_list):
+                if sql and sql.strip():
+                    allure.attach(sql, name=f"失败的SQL[{idx+1}]原始SQL", 
+                                  attachment_type=allure.attachment_type.TEXT)
+                    try:
+                        rendered = current_db.render_sql(sql)
+                        allure.attach(rendered, name=f"失败的SQL[{idx+1}]渲染后SQL", 
+                                      attachment_type=allure.attachment_type.TEXT)
+                    except:
+                        pass
+            if 'all_results' in locals():
+                for idx, rows in enumerate(all_results):
+                    allure.attach(json.dumps(rows, ensure_ascii=False, indent=2, default=str),
+                                 name=f"失败时的SQL[{idx+1}]结果", 
+                                 attachment_type=allure.attachment_type.JSON)
             raise
 
 
