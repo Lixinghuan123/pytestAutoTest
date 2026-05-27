@@ -144,6 +144,7 @@ def _set_allure_labels(case: dict):
 
 def _attach_request(http_client, url, method, headers, data):
     """附加请求信息到 Allure"""
+    # 这里还要渲染一遍是因为有些url是有动态参数的，例：/api/user/{{uid}}
     full_url = http_client.context.render(url)
     body = http_client._parse(http_client.context.render(data)) if data else None
     
