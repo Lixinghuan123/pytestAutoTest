@@ -11,6 +11,12 @@ def pytest_addoption(parser):
         default="test", 
         help="数据库环境: dev/test/prod (默认: test)"
     )
+    parser.addoption(
+        "--api-base-url",
+        action="store",
+        default="https://www.info-sandbox.top",
+        help="覆盖 pytest-base-url 插件的 --base-url 值，设置 API 基础 URL"
+    )
 
 
 @pytest.fixture(scope="session")
@@ -20,10 +26,10 @@ def db_env(request):
 
 
 @pytest.fixture(scope="session")
-def global_ctx():
+def global_ctx(request):
     """全局变量上下文，整个测试会话共享。在此配置初始变量。"""
     ctx = GlobalContext()
-    ctx.set("base_url", "https://www.info-sandbox.top")  # 基础URL，相对路径会自动拼接
+    ctx.set("base_url", request.config.getoption("--api-base-url"))
     return ctx
 
 
@@ -78,8 +84,10 @@ def pytest_configure(config):
     
     # 获取数据库环境
     db_env = config.getoption("--db-env", "test")
+    base_url = config.getoption("--api-base-url", "https://www.info-sandbox.top")
     
     env_file = os.path.join(allure_dir, "environment.properties")
     with open(env_file, "w", encoding="utf-8") as f:
         f.write("Framework=pytest+allure+requests\n")
         f.write(f"DB_ENV={db_env}\n")
+        f.write(f"BASE_URL={base_url}\n")

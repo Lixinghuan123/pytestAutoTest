@@ -23,7 +23,7 @@ def _parse_multiple_sql(sql_str: str) -> list[str]:
     if ";" in sql_str:
         return [s.strip() for s in sql_str.split(";") if s.strip()]
     
-    # 返回单条 SQL
+    # 返回单条 SQL和单条sql对应的expected字段可以为多个
     return [sql_str]
 
 
@@ -44,8 +44,8 @@ def read_excel(file_path: str, sheet_name=0) -> list[dict]:
             if isinstance(v, float) and math.isnan(v):
                 case[k] = None
             
-            # 处理 sql 和 expected_sql 字段，解析为列表
-            if k in ("sql", "expected_sql") and v:
+            # 处理 sql 字段，解析为多条 SQL 列表；expected_sql 保持原样（断言表达式）
+            if k == "sql" and v:
                 case[k] = _parse_multiple_sql(v)
     
     print("cases", cases)

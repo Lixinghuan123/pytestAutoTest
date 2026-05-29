@@ -118,12 +118,30 @@ def test_api(case: dict, http_client, global_ctx, db_client, db_client_factory):
             
             # 执行断言
             if expected_sql_list:
-                # 确保 expected_sql_list 是列表格式
-                if isinstance(expected_sql_list, str):
-                    expected_sql_list = [expected_sql_list]
+                # expected_sql 来自 Excel 时为原始字符串，需根据内容判断格式：
+                #   JSON 字符串数组 ["exp1", "exp2"] → 多条 SQL 对应多条断言
+                #   JSON 值数组 [1,2,3] 或普通字符串 → 单条断言表达式
+                raw = expected_sql_list
+                if isinstance(raw, str):
+                    try:
+                        parsed = json.loads(raw)
+                        if isinstance(parsed, list) and all(isinstance(item, str) for item in parsed):
+                            expected_sql_list = parsed
+                        else:
+                            expected_sql_list = [raw]
+                    except json.JSONDecodeError:
+                        expected_sql_list = [raw]
+                elif not isinstance(raw, list):
+                    expected_sql_list = [raw]
                 
-                with allure.step(f"SQL断言: {expected_sql_list}"):
-                    assert_sql(all_results, expected_sql_list)
+                # 渲染期望断言中的模板变量（支持 {{ var }} 引用上下文变量）
+                rendered_expected = [
+                    global_ctx.render(str(exp)) if exp else exp
+                    for exp in expected_sql_list
+                ]
+                
+                with allure.step(f"SQL断言: {rendered_expected}"):
+                    assert_sql(all_results, rendered_expected)
         except Exception as e:
             # 确保即使失败也能记录SQL信息
             for idx, sql in enumerate(sql_list):

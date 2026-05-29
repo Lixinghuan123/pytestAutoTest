@@ -199,11 +199,12 @@ def _parse_expected(expected_str: str) -> List[Dict[str, Any]]:
     """解析期望字符串，支持多种格式：
     
     1. 简单格式："key=value, key2>value2, key3 contains value3"
-    2. JSON数组格式：[{"key1": "value1"}, {"key1": "value2"}] - 多行全量对比
-    3. 特殊断言："count=5", "count>10", "total(column)=100", "total(column)>=100"
+    2. JSON对象数组：[{"key1": "value1"}, {"key1": "value2"}] - 多行全量对比
+    3. JSON值数组：[1, 2, 3] - 列值汇总对比（提取结果第一列，与期望数组逐元素对比）
+    4. 特殊断言："count=5", "count>10", "total(column)=100", "total(column)>=100"
     
     返回解析后的断言列表，每个元素包含:
-    - type: "field" | "count" | "total"
+    - type: "field" | "count" | "total" | "rows" | "column_values"
     - key: 字段名或统计类型
     - operator: 比较运算符
     - value: 期望值
@@ -213,12 +214,16 @@ def _parse_expected(expected_str: str) -> List[Dict[str, Any]]:
     
     expected_str = str(expected_str).strip()
     
-    # 尝试解析为 JSON 数组（多行全量对比）
+    # 尝试解析为 JSON 数组
     if expected_str.startswith("[") and expected_str.endswith("]"):
         try:
             parsed = json.loads(expected_str)
             if isinstance(parsed, list):
-                return [{"type": "rows", "value": parsed}]
+                # 检查数组元素类型：全为 dict → 多行全量对比；全为普通值 → 列值汇总对比
+                if parsed and all(isinstance(item, dict) for item in parsed):
+                    return [{"type": "rows", "value": parsed}]
+                else:
+                    return [{"type": "column_values", "value": parsed}]
         except json.JSONDecodeError:
             pass
     
@@ -373,9 +378,12 @@ def assert_sql(actual_rows: List[Dict[str, Any]], expected_str: Union[str, List[
        - `total(amount)>=500` - amount列总和大于等于500
     
     4. **多行全量对比**:
-       - `[{"id": 1, "name": "a"}, {"id": 2, "name": "b"}]` - JSON数组格式，逐行对比
+       - `[{"id": 1, "name": "a"}, {"id": 2, "name": "b"}]` - JSON对象数组，逐行逐字段对比
     
-    5. **组合断言**:
+    5. **列值汇总对比**:
+       - `[1, 2, 3]` - JSON值数组，自动提取结果中第一列的所有值，与期望数组逐元素对比
+    
+    6. **组合断言**:
        - `count=2, status=active, total(amount)>100`
     
     参数:
@@ -422,6 +430,25 @@ def _assert_single_sql(actual_rows: List[Dict[str, Any]], expected_str: str, pre
                     assert str(actual_value) == str(expected_value), (
                         add_prefix(f"第{i+1}行 {key} 不匹配: 实际={actual_value!r}, 期望={expected_value!r}")
                     )
+        
+        elif assert_type == "column_values":
+            # 列值汇总对比：提取结果中第一列的所有值，与期望数组逐元素对比
+            expected_values = assert_item["value"]
+            
+            if not actual_rows:
+                assert False, add_prefix("SQL查询结果为空，无法提取列值")
+            
+            col_name = list(actual_rows[0].keys())[0]
+            actual_values = [row[col_name] for row in actual_rows]
+            
+            assert len(actual_values) == len(expected_values), (
+                add_prefix(f"列值数量不匹配: 实际{len(actual_values)}个，期望{len(expected_values)}个")
+            )
+            
+            for i, (actual, expected) in enumerate(zip(actual_values, expected_values)):
+                assert str(actual) == str(expected), (
+                    add_prefix(f"第{i+1}个值不匹配: 实际={actual!r}，期望={expected!r}")
+                )
         
         elif assert_type == "count":
             # 行数断言
